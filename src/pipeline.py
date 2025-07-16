@@ -1,7 +1,7 @@
 import cv2
 import os
-from data_preparation import adaptive_threshold_and_filter
-from models_detection import detect_object, load_model
+from src.data_preparation import adaptive_threshold_and_filter
+from src.models_detection import detect_object, load_model
 import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -41,7 +41,7 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
             color = (255, 255, 0)  # Yellow for unknown
         x_min, y_min, x_max, y_max = detection['bbox']
         cv2.rectangle(image,(x_min, y_min), (x_max, y_max), color, 2)
-        print(f"Detected {detection['label']} at {detection['bbox']}")
+        #print(f"Detected {detection['label']} at {detection['bbox']}")
         
         cv2.putText(image, detection['label'], (detection['bbox'][0], detection['bbox'][1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
     
@@ -96,7 +96,7 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
     # Predict the characters in the final cropped images
     predictions = []
     model_class = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'U', 'W', 'X', 'Y']
-    model = load_model("char_cnn.pth", num_classes=len(model_class))
+    model = load_model("./src/char_cnn.pth", num_classes=len(model_class))
     transform = transforms.Compose([
         transforms.Grayscale(),
         transforms.Resize((32, 32)),
@@ -119,7 +119,7 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
             'character': char,
             'image': final['image']
         })
-        print(f"Predicted character: {char} for label: {final['label']}")
+        #print(f"Predicted character: {char} for label: {final['label']}")
         if final['label'] == 'CN':
             code['CN'] += char
         elif final['label'] == 'TS':

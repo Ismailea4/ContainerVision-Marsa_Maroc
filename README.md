@@ -16,13 +16,14 @@ This project leverages OCR and computer vision to automatically extract containe
 ├── yolov8n.pt
 ├── ocr_fast.py
 ├── prepare_yolo.py
-├── src/                  # Source code
-├── utils/                # Utility functions
-├── notebook/             # Jupyter notebooks
-├── data/                 # Data samples (do not push large files)
-├── cvat_annotation/      # Annotation scripts and files
-├── runs/                 # Model outputs (ignored in git)
-├── env/                  # Virtual environment (ignored in git)
+├── main.py                # Main entry point for detection
+├── src/                   # Source code
+├── utils/                 # Utility functions
+├── notebook/              # Jupyter notebooks
+├── data/                  # Data samples (do not push large files)
+├── cvat_annotation/       # Annotation scripts and files
+├── runs/                  # Model outputs (ignored in git)
+├── env/                   # Virtual environment (ignored in git)
 ```
 
 ## Getting Started
@@ -65,67 +66,60 @@ This project leverages OCR and computer vision to automatically extract containe
 
 ## Usage
 
-### OCR and Detection Pipeline
+### Run Detection from Command Line
 
-The main function for container OCR and seal detection is in [`src/pipeline.py`](src/pipeline.py):
+The easiest way to run detection and OCR is via the `main.py` script.
 
-#### Function: `container_OCR`
+#### Example Command
 
-```python
-def container_OCR(
-    image_path,
-    model_path='weights/best.pt',
-    object_type=['seal', 'code', 'character'],
-    conf=0.25,
-    iou=0.45,
-    display=False
-)
+```sh
+python main.py --image data/test/1-153655001-OCR-RF-D01.jpg --model weights/best.pt --object_type code --display --output result.jpg
 ```
 
-**Parameters:**
+**Arguments:**
 
-- `image_path` (str): Path to the input image.
-- `model_path` (str): Path to the trained YOLO model weights.
-- `object_type` (list): List of object types to detect (`'seal'`, `'code'`, `'character'`).
-- `conf` (float): Confidence threshold for detections.
-- `iou` (float): IoU threshold for non-max suppression.
-- `display` (bool): If `True`, displays images with bounding boxes and predictions.
+- `--image`: Path to the input image (required)
+- `--model`: Path to YOLO model weights (default: `weights/best.pt`)
+- `--char_model`: Path to character CNN model (default: `char_cnn.pth`)
+- `--object_type`: List of object types to detect (`code`, `seal`, `character`)
+- `--conf`: Confidence threshold (default: `0.25`)
+- `--iou`: IoU threshold (default: `0.45`)
+- `--display`: Show the image with predictions
+- `--output`: Path to save the output image (default: `output_with_predictions.jpg`)
 
-**Returns:**
+**Example Output:**
 
-- `dict` with keys:
-  - `'predictions'`: Final image with bounding boxes and predicted text.
-  - `'code'`: Dictionary with extracted codes (e.g., container number, type).
+```
+Extracted Codes: {'CN': '...', 'TS': '...'}
+Output image saved to result.jpg
+```
 
-#### Example Usage
+---
+
+### Using the Pipeline Function Directly
+
+You can also use the main detection function in your own Python scripts:
 
 ```python
 from src.pipeline import container_OCR
 
-image_path = 'notebook/images/1-155405001-OCR-AS-B01.jpg'
+image_path = 'data/test/1-153655001-OCR-RF-D01.jpg'
 model_path = 'weights/best.pt'
 
 result = container_OCR(
-    image_path,
-    model_path,
+    image_path=image_path,
+    model_path=model_path,
     object_type=['code', 'seal', 'character'],
     conf=0.25,
     iou=0.45,
-    display=True  # Set to False to disable image display
+    display=True
 )
 
-# Print extracted codes
 print("Extracted Codes:", result['code'])
 
-# Save or display the final image with predictions
 import cv2
 cv2.imwrite('output_with_predictions.jpg', result['predictions'])
 ```
-
-**Note:**
-
-- Make sure your model weights and image paths are correct.
-- The function will display images if `display=True`.
 
 ---
 
