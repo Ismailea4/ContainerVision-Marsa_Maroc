@@ -212,7 +212,7 @@ def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, windo
     Returns the morphologically processed binary image and a list of filtered, sorted bounding rectangles for detected objects.
 
     Args:
-        image_path (str): Path to the input image.
+        image_path (str): Path to the input image or the image.
         min_area (int, optional): Minimum area for connected components to be kept. Defaults to 50.
         window_size (int, optional): Window size for adaptive thresholding. Defaults to 31.
         window_constant (int, optional): Constant subtracted from mean in adaptive thresholding. Defaults to -1.
@@ -225,7 +225,16 @@ def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, windo
             boundRect (list): List of filtered and sorted bounding rectangles (x, y, w, h) for detected objects.
     """
 
-    inputImage = cv2.imread(image_path)
+    # Cheak if the image_path is a path or image
+    if isinstance(image_path, str):
+        # Load the image from the path
+        inputImage = cv2.imread(image_path)
+        if inputImage is None:
+            raise FileNotFoundError(f"Could not read image from path: {image_path}")
+    else:
+        # Assume image_path is already an image array
+        inputImage = image_path.copy()
+    
     inputCopy = inputImage.copy()
 
     # Convert BGR to grayscale:
@@ -272,13 +281,12 @@ def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, windo
             boundRect.append(cv2.boundingRect(contours_poly[i]))
 
     # Load YOLO model (update the path if needed)
-    model = YOLO('../runs/detect/train2/weights/best.pt')
+    model = YOLO('runs/detect/train_alphanum_detection/weights/best.pt')
 
     # Run YOLO detection
     results = model(image_path)  # image_path should be defined earlier
 
     boundRect = []
-    inputCopy = cv2.imread(image_path)
     inputCopy = cv2.cvtColor(inputCopy, cv2.COLOR_BGR2RGB)
 
     for result in results:

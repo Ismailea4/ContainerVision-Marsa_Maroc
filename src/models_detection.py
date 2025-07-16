@@ -60,7 +60,9 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                label = result.names[box.cls[0]]
+                print(box.cls, box.conf)
+                print(result.names)
+                label = result.names[int(box.cls[0])]
                 confidence = box.conf[0]
                 detections.append({
                     'bbox': [x1, y1, x2, y2],
@@ -92,3 +94,111 @@ def finetune_model(dataset, val_data, model_path='yolov8n.pt', epochs=50, batch_
     
     model = YOLO(model_path)
     model.train(data=dataset, val=val_data, epochs=epochs, batch=batch_size, project=project, name=name)
+    
+    
+# Model CNN character recognition
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+from torch.utils.data import Dataset, DataLoader
+from PIL import Image
+import os
+
+# Dataset
+class CharDataset(Dataset):
+    def __init__(self, folder):
+        self.data = []
+        self.labels = []
+        self.classes = sorted(list(set([f.split("_")[0] for f in os.listdir(folder)])))
+        self.class_to_idx = {cls: i for i, cls in enumerate(self.classes)}
+        self.folder = folder
+        self.transform = transforms.Compose([
+            transforms.Grayscale(),
+            transforms.Resize((32, 32)),
+            transforms.ToTensor(),
+        ])
+        for fname in os.listdir(folder):
+            label = fname.split("_")[0]
+            self.data.append(fname)
+            self.labels.append(self.class_to_idx[label])
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.folder, self.data[idx])
+        image = self.transform(Image.open(img_path))
+        label = self.labels[idx]
+        return image, label
+
+# Model
+class CharCNN(nn.Module):
+    def __init__(self, num_classes):
+        super(CharCNN, self).__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Flatten(),
+            nn.Linear(64 * 8 * 8, 256), nn.ReLU(),
+            nn.Linear(256, num_classes)
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+# Load the model for inference
+def load_model(model_path, num_classes):
+    model = CharCNN(num_classes)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    return model
+
+def predict_characters(model, image_paths, transform):
+    model.eval()
+    predictions = []
+    with torch.no_grad():
+        for img_path in image_paths:
+            image = transform(Image.open(img_path)).unsqueeze(0)  # Add batch dimension
+            output = model(image)
+            pred = output.argmax(dim=1).item()
+            predictions.append(pred)
+            text = text + CharDataset('augmented_characters').classes[pred]
+    return text, predictions
+
+# Example usage
+if __name__ == "__main__":
+    # Training
+    dataset = CharDataset("augmented_characters")
+    loader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model = CharCNN(num_classes=len(dataset.classes))
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    for epoch in range(10):
+        total_loss = 0
+        for x, y in loader:
+            y_pred = model(x)
+            loss = criterion(y_pred, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        print(f"Epoch {epoch}: loss = {total_loss:.4f}")
+        
+    # Save the model
+    torch.save(model.state_dict(), "char_cnn.pth")
+    # Inference 31 classes
+    model = load_model("char_cnn.pth", num_classes=len(CharDataset("augmented_characters").classes))
+    transform = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+    ])
+    print("Model classes:", CharDataset("augmented_characters").classes)
+    
+    # Replace with your image paths
+    test_image_paths = ["cropped_characters\G_labeled_1-132130001-OCR-LF-C01.jpg_-1.jpg", "cropped_characters\7_labeled_1-143242001-OCR-LB-C02.jpg_0.jpg"]
+    predictions = predict_characters(model, test_image_paths, transform)[1]
+    
+    for img_path, pred in zip(test_image_paths, predictions):
+        print(f"Image: {img_path}, Predicted Class: {CharDataset('augmented_characters').classes[pred]}")

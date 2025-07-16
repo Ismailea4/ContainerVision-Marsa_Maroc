@@ -61,7 +61,75 @@ This project leverages OCR and computer vision to automatically extract containe
 - Annotation files and scripts are in `cvat_annotation/`.
 - **Note:** Large datasets and model weights should not be pushed to GitHub. Use `.gitignore` to exclude them.
 
-### Usage
+---
+
+## Usage
+
+### OCR and Detection Pipeline
+
+The main function for container OCR and seal detection is in [`src/pipeline.py`](src/pipeline.py):
+
+#### Function: `container_OCR`
+
+```python
+def container_OCR(
+    image_path,
+    model_path='weights/best.pt',
+    object_type=['seal', 'code', 'character'],
+    conf=0.25,
+    iou=0.45,
+    display=False
+)
+```
+
+**Parameters:**
+
+- `image_path` (str): Path to the input image.
+- `model_path` (str): Path to the trained YOLO model weights.
+- `object_type` (list): List of object types to detect (`'seal'`, `'code'`, `'character'`).
+- `conf` (float): Confidence threshold for detections.
+- `iou` (float): IoU threshold for non-max suppression.
+- `display` (bool): If `True`, displays images with bounding boxes and predictions.
+
+**Returns:**
+
+- `dict` with keys:
+  - `'predictions'`: Final image with bounding boxes and predicted text.
+  - `'code'`: Dictionary with extracted codes (e.g., container number, type).
+
+#### Example Usage
+
+```python
+from src.pipeline import container_OCR
+
+image_path = 'notebook/images/1-155405001-OCR-AS-B01.jpg'
+model_path = 'weights/best.pt'
+
+result = container_OCR(
+    image_path,
+    model_path,
+    object_type=['code', 'seal', 'character'],
+    conf=0.25,
+    iou=0.45,
+    display=True  # Set to False to disable image display
+)
+
+# Print extracted codes
+print("Extracted Codes:", result['code'])
+
+# Save or display the final image with predictions
+import cv2
+cv2.imwrite('output_with_predictions.jpg', result['predictions'])
+```
+
+**Note:**
+
+- Make sure your model weights and image paths are correct.
+- The function will display images if `display=True`.
+
+---
+
+### Other Scripts
 
 - **OCR and Detection:**  
   Main scripts for OCR and YOLO preparation are in the root and `src/` directories.
@@ -71,7 +139,6 @@ This project leverages OCR and computer vision to automatically extract containe
   ```
 - **Annotation:**  
   Use scripts in `cvat_annotation/` for annotation conversion and visualization.
-
 - **Notebooks:**  
   Explore and test models in the `notebook/` directory.
 
