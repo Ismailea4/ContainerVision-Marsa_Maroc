@@ -32,7 +32,7 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
     elif 'code' in object_type:
         print("Detecting code...")
         
-        model_path_code = "runs/detect/train_code_detection/" + model_path
+        model_path_code = "runs/detect/train_code_detection2/" + model_path
         if not os.path.exists(model_path_code):
             raise FileNotFoundError(f"Model file not found: {model_path_code}")
         else:
@@ -60,8 +60,8 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                print(box.cls, box.conf)
-                print(result.names)
+                #print(box.cls, box.conf)
+                #print(result.names)
                 label = result.names[int(box.cls[0])]
                 confidence = box.conf[0]
                 detections.append({

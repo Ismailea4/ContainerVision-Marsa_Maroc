@@ -6,6 +6,74 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 
+def check_digit_verification(code):
+    """
+    Validates a code by checking if its check digit matches a calculated value.
+
+    The function assigns numerical values to letters, verifies the code format,
+    and computes a weighted sum to compare against the check digit.
+
+    Args:
+        code (dict): Dictionary containing a 'CN' key with an 11-character string.
+
+    Returns:
+        bool: True if the check digit is valid, False otherwise.
+    """
+    # Create numerical value assigned to each letter of the alphabet using code ascii
+    cst = 10
+    letter_values = {}
+    for i in range(65, 91):
+        if (i - 65 + cst) % 11 == 0:
+            cst += 1 
+        letter_values[chr(i)] = i - 65 + cst    
+    
+    
+    # Verify if the first 4 are letters and the last 7 are digits
+    if len(code["CN"]) == 11 and code["CN"][:4].isalpha() and code["CN"][4:].isdigit():
+        check_digit = int(code["CN"][-1])
+        i = 0
+        sum = 0
+        for char in code["CN"][:-1]:
+            if char.isalpha():
+                sum += letter_values[char] * 2**i
+            else:
+                sum += int(char) * 2**i
+            i += 1
+    
+        return check_digit == sum % 11
+    return False
+
+def code_verification(code):
+    """
+    Verify the extracted code.
+    
+    Args:
+        code (dict): Dictionary containing the extracted codes.
+        
+    Returns:
+        bool: True if the code is valid, False otherwise.
+    """
+    # Example verification logic (to be replaced with actual logic)
+    if code["CN"]:
+        if len(code['CN']) == 11:
+            # Change 0 by O and 1 by I in the first 4 characters 
+            code['CN'] = code['CN'][:4].replace('0', 'O') + code['CN'][4:]
+            code['CN'] = code['CN'][:4].replace('1', 'I') + code['CN'][4:].replace('I', '1')
+            
+            if not check_digit_verification(code):
+                print("Invalid CN code")
+                #code['CN'] = ""
+        else:
+            print("Invalid CN code length")
+    
+    if code["TS"]:
+        if len(code['TS']) == 4:
+            # Change I by 1 in the 4 characters
+            code['TS'] = code['TS'].replace('I', '1')
+        else:
+            print("Invalid TS code length")
+    return code
+
 
 def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal', 'code', 'character'], conf=0.25, iou=0.45, display=False):
     """
@@ -148,6 +216,8 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
         plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         plt.axis('off')
         plt.show()
+        
+    code = code_verification(code)
         
     return {
         #'detections': detections,
