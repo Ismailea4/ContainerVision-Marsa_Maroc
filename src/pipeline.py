@@ -39,6 +39,8 @@ def check_digit_verification(code):
             else:
                 sum += int(char) * 2**i
             i += 1
+        if sum % 11 == 10:
+            sum = 0
     
         return check_digit == sum % 11
     return False
@@ -55,6 +57,8 @@ def code_verification(code):
     """
     # Example verification logic (to be replaced with actual logic)
     if code["CN"]:
+        # Replace '-' by '' in the CN code
+        code['CN'] = code['CN'].replace('-', '')
         if len(code['CN']) == 11:
             # Change 0 by O and 1 by I in the first 4 characters 
             code['CN'] = code['CN'][:4].replace('0', 'O') + code['CN'][4:]
@@ -67,9 +71,12 @@ def code_verification(code):
             print("Invalid CN code length")
     
     if code["TS"]:
+        # Replace '-' by '' in the TS code
+        code['TS'] = code['TS'].replace('-', '')
         if len(code['TS']) == 4:
             # Change I by 1 in the 4 characters
             code['TS'] = code['TS'].replace('I', '1')
+
         else:
             print("Invalid TS code length")
     return code
@@ -135,7 +142,7 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
     # Apply adaptive thresholding and filtering
     processed_images = []
     for cropped in cropped_images:
-        processed_image, boundingChar = adaptive_threshold_and_filter(cropped['image'])
+        processed_image, boundingChar = adaptive_threshold_and_filter(cropped['image'],display=display)
         processed_images.append({
             'label': cropped['label'],
             'image': processed_image,
@@ -163,8 +170,9 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
         
     # Predict the characters in the final cropped images
     predictions = []
-    model_class = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'U', 'W', 'X', 'Y']
-    model = load_model("./src/char_cnn.pth", num_classes=len(model_class))
+    model_class = ['-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    print(len(model_class), "classes")
+    model = load_model("./src/resnet_char_cnn.pth", num_classes=len(model_class))
     transform = transforms.Compose([
         transforms.Grayscale(),
         transforms.Resize((32, 32)),

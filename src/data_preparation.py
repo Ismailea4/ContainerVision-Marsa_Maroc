@@ -206,7 +206,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
 
-def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, window_constant=-1, kernel_size=3, op_iterations=1):
+def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, window_constant=-1, kernel_size=3, op_iterations=1, display=False):
     """
     Applies adaptive thresholding, area filtering, morphological closing, and YOLO object detection to an input image. 
     Returns the morphologically processed binary image and a list of filtered, sorted bounding rectangles for detected objects.
@@ -326,16 +326,27 @@ def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, windo
     h, w = inputImage.shape[:2]
     if w > h:
         # Horizontal: sort by x (left to right)
-        boundRect = sorted(boundRect, key=lambda b: b[0])
+        if h >= w / 3:
+            # Height is at least half the width: split into top and bottom halves
+            print("The image is horizontal, splitting into top and bottom halves.")
+            top_half = [b for b in boundRect if b[1] < h // 2]
+            bottom_half = [b for b in boundRect if b[1] >= h // 2]
+            top_half_sorted = sorted(top_half, key=lambda b: b[0])
+            bottom_half_sorted = sorted(bottom_half, key=lambda b: b[0])
+            boundRect = top_half_sorted + bottom_half_sorted
+        else:
+            # Standard horizontal: sort all left to right
+            boundRect = sorted(boundRect, key=lambda b: b[0])
     else:
         # Vertical: sort by y (top to bottom)
         boundRect = sorted(boundRect, key=lambda b: b[1])
 
     # Visualize the bounding boxes
-    plt.imshow(inputCopy)
-    plt.title("YOLO Bounding Boxes Detected")
-    plt.axis('off')
-    plt.show()
+    if display:
+        plt.imshow(inputCopy)
+        plt.title("YOLO Bounding Boxes Detected")
+        plt.axis('off')
+        plt.show()
 
     return closingImage, boundRect  # closingImage is not relevant here, so return None
 
