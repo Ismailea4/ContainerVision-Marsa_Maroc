@@ -25,11 +25,11 @@ Each image filename contains a code indicating the camera/viewpoint. There are *
 
 | Type | Description                        | Example Filename (one line)                                   |
 |------|------------------------------------|---------------------------------------------------------------|
-| LF   | Left Front                         | ![LF](organised_samples/153458001/1-153458001-OCR-LF-A01.jpg) |
-| RF   | Right Front                        | ![RF](organised_samples/153458001/1-153458001-OCR-RF-A01.jpg) |
-| LB   | Left Back                          | ![LB](organised_samples/153458001/1-153458001-OCR-LB-A01.jpg) |
+| LF   | Left Front                         | ![LF](organised_samples/153458001/1-153458001-OCR-LF-C01.jpg) |
+| RF   | Right Front                        | ![RF](organised_samples/153458001/1-153458001-OCR-RF-D01.jpg) |
+| LB   | Left Back                          | ![LB](organised_samples/153458001/1-153458001-OCR-LB-C02.jpg) |
 | AH   | Above Horizontal (Top view)        | ![AH](organised_samples/153458001/1-153458001-OCR-AH-A01.jpg) |
-| AS   | Above Side (Side-top/Angular view) | ![AS](organised_samples/153458001/1-153458001-OCR-AS-A01.jpg) |
+| AS   | Above Side (Side-top/Angular view) | ![AS](organised_samples/153458001/1-153458001-OCR-AS-B01.jpg) |
 
 You can identify the type by looking for `LF`, `RF`, `LB`, `AH`, or `AS` in the filename.
 
