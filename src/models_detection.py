@@ -21,7 +21,7 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
     if 'seal' in object_type:
         print("Detecting seal...")
         
-        model_path_seal = "runs/detect/train_seal_detection/" + model_path
+        model_path_seal = "runs/detect/train_seal_detection2/" + model_path
         if not os.path.exists(model_path_seal):
             raise FileNotFoundError(f"Model file not found: {model_path_seal}")
         else:
