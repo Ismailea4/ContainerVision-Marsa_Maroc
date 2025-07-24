@@ -17,7 +17,7 @@ This project leverages OCR and computer vision to automatically extract containe
 ├── ocr_fast.py
 ├── prepare_yolo.py
 ├── main.py                # Main entry point for detection
-├── src/                   # Source code
+├── src/                   # Source code (pipelines, models, utils)
 ├── utils/                 # Utility functions
 ├── notebook/              # Jupyter notebooks
 ├── data/                  # Data samples (do not push large files)
@@ -68,17 +68,17 @@ This project leverages OCR and computer vision to automatically extract containe
 
 ### Run Detection from Command Line
 
-The easiest way to run detection and OCR is via the `main.py` script.
+The main entry point for detection and OCR is via the `main.py` script, which uses the `container_detection` pipeline from `src/pipeline.py`.
 
 #### Example Command
 
 ```sh
-python main.py --image data/test/1-153655001-OCR-RF-D01.jpg --model weights/best.pt --object_type code --display --output result.jpg
+python main.py --image data/test/1-153655001-OCR-RF-D01.jpg --model weights/best.pt --object_type code seal character --display --output result.jpg
 ```
 
 **Arguments:**
 
-- `--image`: Path to the input image (required)
+- `--image`: Path to the input image or directory (required)
 - `--model`: Path to YOLO model weights (default: `weights/best.pt`)
 - `--char_model`: Path to character CNN model (default: `char_cnn.pth`)
 - `--object_type`: List of object types to detect (`code`, `seal`, `character`)
@@ -90,36 +90,83 @@ python main.py --image data/test/1-153655001-OCR-RF-D01.jpg --model weights/best
 **Example Output:**
 
 ```
-Extracted Codes: {'CN': '...', 'TS': '...'}
+Extracted Detections: {'CN': {'confidence': 0.98, 'value': 'ABCD1234567'}, 'TS': {'confidence': 0.95, 'value': '1234'}, 'sealed': {'confidence': 0.92, 'value': 2}}
 Output image saved to result.jpg
 ```
 
 ---
 
-### Using the Pipeline Function Directly
+### Using the Pipeline Functions Directly
 
-You can also use the main detection function in your own Python scripts:
+You can use the main detection and seal functions in your own Python scripts.  
+The pipeline returns:
+
+- `'detections'`: a dictionary with detection types as keys and a dictionary of confidence and value as values.
+- `'predictions'`: the annotated image (with bounding boxes, code, and confidence displayed).
+
+#### Example: Container OCR and Detection
 
 ```python
-from src.pipeline import container_OCR
+from src.pipeline import container_detection
 
 image_path = 'data/test/1-153655001-OCR-RF-D01.jpg'
 model_path = 'weights/best.pt'
 
-result = container_OCR(
+result = container_detection(
     image_path=image_path,
     model_path=model_path,
-    object_type=['code', 'seal', 'character'],
+    object_type=['code', 'seal'],
     conf=0.25,
     iou=0.45,
     display=True
 )
 
-print("Extracted Codes:", result['code'])
+print("Detections:", result['detections'])
 
 import cv2
 cv2.imwrite('output_with_predictions.jpg', result['predictions'])
 ```
+
+#### Example: Seal Detection Only
+
+```python
+from src.pipeline import container_seal
+
+image_path = 'data/test/1-153655001-OCR-RF-D01.jpg'
+model_path = 'weights/best.pt'
+
+seal_result = container_seal(
+    image_path=image_path,
+    model_path=model_path,
+    conf=0.25,
+    iou=0.45,
+    display=True
+)
+
+print("Seal Detections:", seal_result['detections'])
+```
+
+---
+
+### Flask API
+
+A simple Flask API is provided in `app.py` to allow image upload and return the annotated image and detected codes.
+
+**Example usage:**
+
+1. Start the server:
+
+   ```sh
+   python app.py
+   ```
+
+2. Open [http://localhost:5000/](http://localhost:5000/) in your browser to use the web interface.
+
+3. Or use curl:
+   ```sh
+   curl -F "image=@path/to/your/image.jpg" http://localhost:5000/detect --output result.png
+   curl -F "image=@path/to/your/image.jpg" http://localhost:5000/detect_json
+   ```
 
 ---
 

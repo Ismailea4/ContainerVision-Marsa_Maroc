@@ -1,5 +1,6 @@
 import cv2
 import os
+import numpy as np
 from src.data_preparation import adaptive_threshold_and_filter
 from src.models_detection import detect_object, load_model
 import torchvision.transforms as transforms
@@ -102,7 +103,8 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
     # Load the image
     image = cv2.imread(image_path)
     
-    detections = detect_object(image_path, model_path, conf, iou, object_type)
+    detections = detect_object(image_path, model_path, conf, iou, ['code'])
+    conf = {'CN':1, 'TS':1}
 
     # draw the bounding boxes on the image
     for detection in detections:
@@ -142,12 +144,16 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
     # Apply adaptive thresholding and filtering
     processed_images = []
     for cropped in cropped_images:
-        processed_image, boundingChar = adaptive_threshold_and_filter(cropped['image'],display=display)
+        processed_image, boundingChar, confids = adaptive_threshold_and_filter(cropped['image'],display=display)
         processed_images.append({
             'label': cropped['label'],
             'image': processed_image,
             'bounding_boxes': boundingChar
         })
+        if cropped['label'] == 'CN':
+            conf['CN'] *= np.mean(confids)
+        elif cropped['label'] == 'TS':
+            conf['TS'] *= np.mean(confids)
     
     # Display the processed images
     if display:
@@ -213,11 +219,28 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
             color = (100, 0, 255)  # Red for character
         else:
             color = (255, 255, 0)  # Yellow for unknown
+        conf[detection['label']] *= detection['confidence']
         x_min, y_min, x_max, y_max = detection['bbox']
         cv2.rectangle(image,(x_min, y_min), (x_max, y_max), color, 2)
         # print(f"Detected {detection['label']} at {detection['bbox']}")
-        
-        cv2.putText(image, code[detection['label']], (detection['bbox'][0], detection['bbox'][1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        label_text = f"{code[detection['label']]} ({detection.get('confidence', 0)*100:.2f}%)"
+        # Get text size
+        (text_width, text_height), baseline = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+        # Set the rectangle coordinates
+        rect_x1 = x_min
+        rect_y1 = y_min - 2*text_height - baseline if y_min - 2*text_height - baseline > 0 else y_min
+        rect_x2 = x_min + text_width
+        rect_y2 = y_min
+
+        # Draw filled rectangle (background)
+        cv2.rectangle(image, (rect_x1, rect_y1), (rect_x2, rect_y2), color, thickness=-1)
+        cv2.putText(image,
+                    label_text,
+                    (detection['bbox'][0], detection['bbox'][1] - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255,255,255),
+                    2)
     
     # Show the final image with predictions
     if display:
@@ -226,20 +249,158 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
         plt.show()
         
     code = code_verification(code)
+    
+    detections = { label : {'confidence': float(conf[label]), 'value': code[label]} for label in code if code[label] }
         
     return {
         #'detections': detections,
         #'cropped_images': cropped_images,
         #'processed_images': processed_images,
         #'final_images': final_images,
-        'predictions': image,
-        'code': code
+        'detections': detections,
+        'predictions': image
     }
+    
 
+def seal_check(detection):
+    """
+    Check the number of seals.
+
+    Args:
+        detection (list): List of detection dictionaries containing label and bounding box.
+
+    Returns:
+        bool: True if at least one seal is detected, False otherwise.
+        int: Number of seals detected.
+    """
+    if not detection:
+        print("No seal detected")
+        return False, None
+    num_seals = sum(1 for det in detection if det.get('label') == 'sealed')
+    if num_seals > 0:
+        print(f"{num_seals} seal(s) detected")
+        return True, num_seals
+    else:
+        print("No seal detected")
+        return False, 0
+
+
+def container_seal(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45, display=False):
+    """
+    Detect seals in an image using a specified model and return their bounding boxes and labels.
+    
+    Args:
+        image_path (str): Path to the input image or an image.
+        model_path (str): Path to the trained model.
+        conf (float): Confidence threshold for detections.
+        iou (float): IoU threshold for non-max suppression.
+        
+    Raises:
+        FileNotFoundError: If the model file does not exist.
+        
+    Returns:
+        list: List of detected seals with bounding boxes and labels.
+    """
+    try:
+        # Load the image
+        image = cv2.imread(image_path)
+    except AttributeError:
+        image = image_path
+    
+    detections = detect_object(image_path, model_path, conf, iou, ['seal'])
+    
+    # Check if seals are detected
+    check, num_seals = seal_check(detections)
+    seal_num = {'sealed': 0, 'unsealed': 0}
+    confids = {'sealed': 1, 'unsealed': 1}
+    if num_seals is None:
+        print("No seals detected in the image.")
+        # Return the original image if no seals are detected
+        return {
+            'detections': [],
+            'predictions': image
+        }
+    elif not check:
+        seal_num['unsealed'] = len(detections) - num_seals
+        print(f"There are {seal_num['unsealed']} unseals detected in the image.")
+        
+    else:
+        seal_num['sealed'] = num_seals
+        seal_num['unsealed'] = len(detections) - num_seals
+        print(f"There are {num_seals} seals detected in the image.")
+
+    # draw the bounding boxes on the image
+    for detection in detections:
+        if detection['label'] == 'sealed':
+            color = (0, 125, 0)  # Green for seal
+            confids['sealed'] *= detection['confidence']
+        elif detection['label'] == 'unsealed':
+            color = (0, 0, 125)  # Red for unsealed
+            confids['unsealed'] *= detection['confidence']
+        x_min, y_min, x_max, y_max = detection['bbox']
+        cv2.rectangle(image,(x_min, y_min), (x_max, y_max), color, 2)
+        label_text = f"{detection['label']} ({detection.get('confidence', 0)*100:.2f}%)"
+        
+        # Get text size
+        (text_width, text_height), baseline = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+        # Set the rectangle coordinates
+        rect_x1 = x_min
+        rect_y1 = y_min - text_height - baseline if y_min - text_height - baseline > 0 else y_min
+        rect_x2 = x_min + text_width
+        rect_y2 = y_min
+
+        # Draw filled rectangle (background)
+        cv2.rectangle(image, (rect_x1, rect_y1), (rect_x2, rect_y2), color, thickness=-1)  # Black background
+
+        # Draw text
+        cv2.putText(image, label_text, (x_min, rect_y2 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2)
+        
+    # Show the image with detections
+    if display:
+        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        plt.axis('off')
+        plt.show()
+        
+    detections = { label : {'confidence': float(confids[label]), 'value': seal_num[label]} for label in seal_num if seal_num[label] }
+    
+    return {
+        'detections': detections,
+        'predictions': image
+    }
+    
+def container_detection(image_path, model_path='weights/best.pt', object_type=['seal', 'code', 'character'], conf=0.25, iou=0.45, display=False):
+    """
+    Detect objects in an image using a specified model and return their bounding boxes and labels.
+    
+    Args:
+        image_path (str): Path to the input image.
+        model_path (str): Path to the trained model.
+        object_type (str): Type of object to detect ('seal', 'code', 'character').
+        conf (float): Confidence threshold for detections.
+        iou (float): IoU threshold for non-max suppression.
+        
+    Raises:
+        FileNotFoundError: If the model file does not exist.
+        
+    Returns:
+        list: List of detected objects with bounding boxes and labels.
+    """
+    
+    results = container_OCR(image_path, model_path, object_type, conf, iou, display)
+    
+    if "seal" in object_type:
+        seal_result = container_seal(results['predictions'], model_path, conf, iou, display)
+        results['detections'].update(seal_result['detections'])
+        results['predictions'] = seal_result['predictions']
+        
+    return results
+
+    
 # Example usage
 if __name__ == "__main__":
     image_path = 'notebook/images/1-155405001-OCR-AS-B01.jpg'
     model_path = 'weights/best.pt'
+    # Run the OCR pipeline
     result = container_OCR(image_path, model_path,object_type=['code'])
     
     # Print the results
@@ -257,3 +418,10 @@ if __name__ == "__main__":
         plt.title(f"Label: {final['label']}")
         plt.show()
     """
+    
+    # Run the seal detection pipeline
+    seal_result = container_seal(image_path, model_path, display=True)
+    print("Seal Detections:", seal_result['detections'])
+    plt.imshow(seal_result['predictions'])
+    plt.axis('off')
+    plt.show()

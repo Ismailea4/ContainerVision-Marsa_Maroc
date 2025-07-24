@@ -287,17 +287,19 @@ def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, windo
     results = model(image_path)  # image_path should be defined earlier
 
     boundRect = []
+    confids = []
     inputCopy = cv2.cvtColor(inputCopy, cv2.COLOR_BGR2RGB)
 
     for result in results:
         boxes = result.boxes.xyxy.cpu().numpy()
         confs = result.boxes.conf.cpu().numpy()
         for box, conf in zip(boxes, confs):
-            if conf >= 0.75:
+            if conf >= 0.55:
                 x1, y1, x2, y2 = map(int, box[:4])
                 w = x2 - x1
                 h = y2 - y1
                 boundRect.append((x1, y1, w, h))
+                confids.append(conf)
                 color = (0, 255, 0)
                 cv2.rectangle(inputCopy, (x1, y1), (x2, y2), color, 2)
     
@@ -348,7 +350,7 @@ def adaptive_threshold_and_filter(image_path, min_area=50, window_size=31, windo
         plt.axis('off')
         plt.show()
 
-    return closingImage, boundRect  # closingImage is not relevant here, so return None
+    return closingImage, boundRect, confids  # closingImage is not relevant here, so return None
 
 def reconstitute_characters_with_padding(closingImage, boundRect, space=10, top_pad=5, bottom_pad=5, left_pad=2, right_pad=2, save_path="reconstituted_image.png"):
     """
@@ -465,7 +467,7 @@ def process_and_reconstitute_all(labeled_samples_dir="labeled_samples"):
             for idx, crop_file in enumerate(crop_files):
                 crop_path = os.path.join(subfolder_path, crop_file)
                 # Use adaptive threshold and filter to get bounding boxes
-                closingImage, boundRect = adaptive_threshold_and_filter(crop_path)
+                closingImage, boundRect, _ = adaptive_threshold_and_filter(crop_path)
                 # Reconstitute the character(s) in this crop
                 if boundRect:
                     # Extract class id from filename
@@ -521,7 +523,7 @@ def semi_supervised_labeling(image_dir, save_dir, min_area=250):
     images = [f for f in os.listdir(image_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     for image_name in images:
         image_path = os.path.join(image_dir, image_name)
-        closingImage, boundRect = adaptive_threshold_and_filter(image_path, min_area=min_area)
+        closingImage, boundRect, _ = adaptive_threshold_and_filter(image_path, min_area=min_area)
         if not boundRect:
             print(f"No bounding boxes found for {image_name}. Skipping.")
             continue
