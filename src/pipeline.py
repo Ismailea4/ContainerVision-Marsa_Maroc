@@ -304,7 +304,7 @@ def container_seal(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45
     try:
         # Load the image
         image = cv2.imread(image_path)
-    except AttributeError:
+    except:
         image = image_path
     
     detections = detect_object(image_path, model_path, conf, iou, ['seal'])
