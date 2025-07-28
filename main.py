@@ -3,6 +3,7 @@ from src.pipeline import container_OCR, container_seal,container_detection
 import cv2
 import os
 
+# Main function to run the container detection pipeline
 def main():
     parser = argparse.ArgumentParser(description="ContainerVision - Marsa Maroc OCR & Seal Detection")
     parser.add_argument('--image', type=str, required=True, help='Path to input image or directory')

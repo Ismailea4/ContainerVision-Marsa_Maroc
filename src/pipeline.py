@@ -5,7 +5,7 @@ from src.data_preparation import adaptive_threshold_and_filter
 from src.models_detection import detect_object, load_model
 import torchvision.transforms as transforms
 from PIL import Image
-import matplotlib.pyplot as plt
+import matplotlib.pylab as plt
 
 def check_digit_verification(code):
     """

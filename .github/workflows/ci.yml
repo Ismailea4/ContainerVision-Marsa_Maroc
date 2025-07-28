@@ -2,9 +2,20 @@ name: ContainerVision CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, data_preparation ]
+    paths:
+      - 'src/**'
+      - 'data/**'
+      - 'runs/**'
+      - 'main.py'
+
   pull_request:
-    branches: [ main ]
+    branches: [ main, data_preparation ]
+    paths:
+      - 'src/**'
+      - 'data/**'
+      - 'runs/**'
+      - 'main.py'
 
 jobs:
   test:
@@ -43,5 +54,4 @@ jobs:
           --iou 0.45 \
           --output output_test.jpg
 
-      # In case models are missing (during early CI), you can allow failure temporarily:
-      continue-on-error: true
+      continue-on-error: true  # remove this when models are always available
