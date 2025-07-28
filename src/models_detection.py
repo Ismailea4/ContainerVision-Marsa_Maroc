@@ -2,6 +2,12 @@
 import os
 from ultralytics import YOLO
 
+model_alphanum = "runs/detect/train_alphanum_detection/"
+model_code = "runs/detect/train_code_detection2/"
+model_seal = "runs/detect/train_seal_detection2/"
+
+
+
 # Object detection (codes, character, seal) function
 def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45, object_type=['seal', 'code', 'character']):
     """
@@ -21,7 +27,7 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
     if 'seal' in object_type:
         print("Detecting seal...")
         
-        model_path_seal = "runs/detect/train_seal_detection2/" + model_path
+        model_path_seal = model_seal + model_path
         if not os.path.exists(model_path_seal):
             raise FileNotFoundError(f"Model file not found: {model_path_seal}")
         else:
@@ -32,7 +38,7 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
     elif 'code' in object_type:
         print("Detecting code...")
         
-        model_path_code = "runs/detect/train_code_detection2/" + model_path
+        model_path_code = model_code + model_path
         if not os.path.exists(model_path_code):
             raise FileNotFoundError(f"Model file not found: {model_path_code}")
         else:
@@ -43,7 +49,7 @@ def detect_object(image_path, model_path='weights/best.pt', conf=0.25, iou=0.45,
     elif 'character' in object_type:
         print("Detecting character...")
         
-        model_path_character = "runs/detect/train_alphanum_detection/" + model_path
+        model_path_character = model_alphanum + model_path
         if not os.path.exists(model_path_character):
             raise FileNotFoundError(f"Model file not found: {model_path_character}")
         else:

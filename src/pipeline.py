@@ -7,6 +7,8 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pylab as plt
 
+model_cnn = 'src/resnet_char_cnn.pth'
+
 def check_digit_verification(code):
     """
     Validates a code by checking if its check digit matches a calculated value.
@@ -178,7 +180,7 @@ def container_OCR(image_path, model_path='weights/best.pt', object_type=['seal',
     predictions = []
     model_class = ['-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
     print(len(model_class), "classes")
-    model = load_model("./src/resnet_char_cnn.pth", num_classes=len(model_class))
+    model = load_model(model_cnn, num_classes=len(model_class))
     transform = transforms.Compose([
         transforms.Grayscale(),
         transforms.Resize((32, 32)),
