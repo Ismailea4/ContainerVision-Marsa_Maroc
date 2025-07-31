@@ -13,17 +13,24 @@ This project leverages OCR and computer vision to automatically extract containe
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
-├── yolov8n.pt
-├── ocr_fast.py
-├── prepare_yolo.py
-├── main.py                # Main entry point for detection
-├── src/                   # Source code (pipelines, models, utils)
-├── utils/                 # Utility functions
-├── notebook/              # Jupyter notebooks
-├── data/                  # Data samples (do not push large files)
-├── cvat_annotation/       # Annotation scripts and files
-├── runs/                  # Model outputs (ignored in git)
-├── env/                   # Virtual environment (ignored in git)
+├── app.py                  # Flask API for web interface
+├── main.py                 # Main entry point for detection
+├── src/                    # Source code (pipelines, models, utils)
+├── app_container/          # Containerized app and detection modules
+│   ├── app2.py
+│   ├── my_detection_module.py
+│   ├── requirements.txt
+│   └── (model weights, etc.)
+├── data/                   # Data samples (do not push large files)
+│   ├── labeled_samples/
+│   ├── organised_samples/
+│   ├── seal_cropped_images/
+│   └── test/
+├── notebook/               # Jupyter notebooks
+├── runs/                   # Model outputs (ignored in git)
+├── templates/              # Flask HTML templates
+├── .github/                # GitHub workflows and project files
+└── (other utility/config files)
 ```
 
 ## Getting Started
@@ -40,7 +47,7 @@ This project leverages OCR and computer vision to automatically extract containe
 1. **Clone the repository:**
 
    ```sh
-   git clone https://github.com/yourusername/ContainerVision-Marsa_Maroc.git
+   git clone https://github.com/Ismailea4/ContainerVision-Marsa_Maroc.git
    cd ContainerVision-Marsa_Maroc
    ```
 
@@ -59,138 +66,97 @@ This project leverages OCR and computer vision to automatically extract containe
 ### Data
 
 - Place your raw and processed data in the `data/` directory.
-- Annotation files and scripts are in `cvat_annotation/`.
 - **Note:** Large datasets and model weights should not be pushed to GitHub. Use `.gitignore` to exclude them.
-
----
 
 ## Usage
 
-### Run Detection from Command Line
+### Command Line Detection
 
-The main entry point for detection and OCR is via the `main.py` script, which uses the `container_detection` pipeline from `src/pipeline.py`.
-
-#### Example Command
+Run detection and OCR using the main script:
 
 ```sh
-python main.py --image data/test/1-153655001-OCR-RF-D01.jpg --model weights/best.pt --object_type code seal character --display --output result.jpg
+python main.py --image data/test/1-153655001-OCR-RF-D01.jpg --model weights/best.pt --object_type code seal --display --output result.jpg
 ```
 
 **Arguments:**
 
 - `--image`: Path to the input image or directory (required)
-- `--model`: Path to YOLO model weights (default: `weights/best.pt`)
-- `--char_model`: Path to character CNN model (default: `char_cnn.pth`)
+- `--model`: Path to YOLO model weights
 - `--object_type`: List of object types to detect (`code`, `seal`, `character`)
 - `--conf`: Confidence threshold (default: `0.25`)
 - `--iou`: IoU threshold (default: `0.45`)
 - `--display`: Show the image with predictions
-- `--output`: Path to save the output image (default: `output_with_predictions.jpg`)
+- `--output`: Path to save the output image
 
-**Example Output:**
-
-```
-Extracted Detections: {'CN': {'confidence': 0.98, 'value': 'ABCD1234567'}, 'TS': {'confidence': 0.95, 'value': '1234'}, 'sealed': {'confidence': 0.92, 'value': 2}}
-Output image saved to result.jpg
-```
-
----
-
-### Using the Pipeline Functions Directly
-
-You can use the main detection and seal functions in your own Python scripts.  
-The pipeline returns:
-
-- `'detections'`: a dictionary with detection types as keys and a dictionary of confidence and value as values.
-- `'predictions'`: the annotated image (with bounding boxes, code, and confidence displayed).
-
-#### Example: Container OCR and Detection
+### Using the Pipeline in Python
 
 ```python
 from src.pipeline import container_detection
 
-image_path = 'data/test/1-153655001-OCR-RF-D01.jpg'
-model_path = 'weights/best.pt'
-
 result = container_detection(
-    image_path=image_path,
-    model_path=model_path,
+    image_path = 'data/test/1-153655001-OCR-RF-D01.jpg'
+    model_path = 'weights/best.pt'
     object_type=['code', 'seal'],
     conf=0.25,
     iou=0.45,
     display=True
 )
-
 print("Detections:", result['detections'])
 
 import cv2
 cv2.imwrite('output_with_predictions.jpg', result['predictions'])
 ```
 
-#### Example: Seal Detection Only
 
-```python
-from src.pipeline import container_seal
+### Streamlit Web App
 
-image_path = 'data/test/1-153655001-OCR-RF-D01.jpg'
-model_path = 'weights/best.pt'
+Start the Streamlit web app:
 
-seal_result = container_seal(
-    image_path=image_path,
-    model_path=model_path,
-    conf=0.25,
-    iou=0.45,
-    display=True
-)
-
-print("Seal Detections:", seal_result['detections'])
+```sh
+streamlit run app.py
 ```
 
----
+- Open the provided local URL (usually [http://localhost:8501/](http://localhost:8501/)) in your browser.
+- Use the interface to upload images, run detection, and view results and statistics interactively.
 
-### Flask API
+You can also run Streamlit in headless/server mode for deployment. See [Streamlit docs](https://docs.streamlit.io/) for more options.
 
-A simple Flask API is provided in `app.py` to allow image upload and return the annotated image and detected codes.
+### Desktop App (Tkinter GUI)
 
-**Example usage:**
+If you prefer a standalone desktop application, you can use the Tkinter-based GUI provided in [`app_container/app2.py`](app_container/app2.py).
 
-1. Start the server:
+#### Download
 
-   ```sh
-   python app.py
-   ```
+- Download the latest release from the [Releases](https://github.com/Ismailea4/ContainerVision-Marsa_Maroc/releases) page (if available), or clone the repository and navigate to the `app_container` folder.
 
-2. Open [http://localhost:5000/](http://localhost:5000/) in your browser to use the web interface.
+#### Usage
 
-3. Or use curl:
-   ```sh
-   curl -F "image=@path/to/your/image.jpg" http://localhost:5000/detect --output result.png
-   curl -F "image=@path/to/your/image.jpg" http://localhost:5000/detect_json
-   ```
+1. **Install dependencies** (from the root or `app_container` folder):
 
----
+    ```sh
+    pip install -r app_container/requirements.txt
+    ```
 
-### Other Scripts
+2. **Run the desktop app:**
 
-- **OCR and Detection:**  
-  Main scripts for OCR and YOLO preparation are in the root and `src/` directories.
-  ```sh
-  python ocr_fast.py
-  python prepare_yolo.py
-  ```
-- **Annotation:**  
-  Use scripts in `cvat_annotation/` for annotation conversion and visualization.
-- **Notebooks:**  
-  Explore and test models in the `notebook/` directory.
+    ```sh
+    python app_container/app2.py
+    ```
 
-### Training
+3. **How to use:**
+    - Click "Select Image" to upload a container image.
+    - Click "Start Detection" to run OCR and seal detection.
+    - View results, copy predictions, and save processed images directly from the app interface.
 
-1. Prepare your dataset in YOLO format (see `prepare_yolo.py`).
+
+### Notebooks
+
+Explore and test models in the [`notebook/`](notebook/) directory.
+
+## Training
+
+1. Prepare your dataset in YOLO format (see `prepare_yolo.py` or notebooks).
 2. Train your model using YOLOv8 or your preferred framework.
-
-### Results
-
-- Model outputs and logs are stored in the `runs/` directory.
 
 ## Contributing
 
@@ -207,5 +173,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 - OpenCV, Tesseract OCR
 
 ---
+
+
 
 _For more details, see the code and comments in each directory._
