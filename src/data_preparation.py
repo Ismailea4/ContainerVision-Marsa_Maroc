@@ -385,6 +385,11 @@ def reconstitute_characters_with_padding(closingImage, boundRect, space=10, top_
         x, y, w, h = boundRect[i]
         croppedImg = closingImage[y:y + h, x:x + w]
         cropped_images.append(croppedImg)
+        # Display each cropped image
+        plt.imshow(croppedImg, cmap='gray')
+        plt.axis('off')
+        plt.title(f'Cropped Image {i}')
+        plt.show()
 
     # Find the maximum height among all cropped images
     max_height = max(img.shape[0] for img in cropped_images)
@@ -633,3 +638,15 @@ def extract_and_save_seal_bboxe_image(labeled_samples_dir="labeled_samples", lab
 
 # Example usage:
 #extract_and_save_seal_bboxes_image(labeled_samples_dir="labeled_samples", label_text_file ="../yolo_label_sealed"  ,seal_output_dir="yolo_label_sealed")
+
+# Test the function reconstitute_characters_with_padding
+# Example usage of reconstitute_characters_with_padding
+"""
+image_path = "data/labeled_samples/124126001/1-124126001-OCR-LB-C02/1-124126001-OCR-LB-C02_reconst_1_class1.jpg"
+closingImage, boundRect, _ = adaptive_threshold_and_filter(image_path)
+result_image = reconstitute_characters_with_padding(closingImage, boundRect, save_path="reconstituted_image.png")
+plt.imshow(result_image, cmap='gray')
+plt.axis('off')
+plt.title('Reconstituted Image with Padding')
+plt.show()
+"""
