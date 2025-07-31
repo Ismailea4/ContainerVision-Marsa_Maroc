@@ -65,23 +65,26 @@ def code_verification_info(code):
     CN = code.get('CN', {}).get('value', '')
     TS = code.get('TS', {}).get('value', '')
     info = "Verification Results:\n"
-    # Example verification logic (to be replaced with actual logic)
+    # Unicode symbols
+    check = "✔"
+    cross = "✘"
+    # Container Number check
     if CN:
-        info += f"Container Number: {CN}\n"
+        info += f"- Container Number: {CN}\n"
         if len(CN) == 11:
             if not check_digit_verification(CN):
-                info += f"/!\ Invalid Container Number (check digit mismatch) .\n"
+                info += f"{cross} Invalid Container Number (check digit mismatch).\n"
             else:
-                info += f"Valid Container Number !\n"
+                info += f"{check} Valid Container Number!\n"
         else:
-            info += f"/!\ Invalid Container Number length.\n"
-            
+            info += f"{cross} Invalid Container Number length.\n"
+    # ISO Code check
     if TS:
-        info += f"ISO Code: {TS}\n"
+        info += f"- ISO Code: {TS}\n"
         if len(TS) == 4:
-            info += f"Valid ISO Code !\n"
+            info += f"{check} Valid ISO Code!\n"
         else:
-            info += f"/!\ Invalid ISO Code length.\n"
+            info += f"{cross} Invalid ISO Code length.\n"
     return info
 
 class ContainerDetectionApp:
@@ -91,6 +94,9 @@ class ContainerDetectionApp:
         self.root.geometry("1400x900")
         self.root.configure(bg="#f0f0f0")
         self.fullscreen_window = None
+        
+        self.cn_mark_var = tk.StringVar(value="")
+        self.ts_mark_var = tk.StringVar(value="")
         
         # Bind F11 for fullscreen toggle
         self.root.bind("<F11>", self.toggle_fullscreen)
@@ -144,7 +150,10 @@ class ContainerDetectionApp:
         ttk.Label(controls_frame, textvariable=self.container_number_var, 
                  font=("Arial", 10), foreground="blue").grid(
             row=0, column=1, sticky=tk.W, padx=(10, 0), pady=5)
-        
+        # Mark label (for check/cross)
+        self.cn_mark_label = ttk.Label(controls_frame, textvariable=self.cn_mark_var, font=("Arial", 12, "bold"))
+        self.cn_mark_label.grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
+
         # ISO Code
         ttk.Label(controls_frame, text="ISO Code:", font=("Arial", 10, "bold")).grid(
             row=1, column=0, sticky=tk.W, pady=5)
@@ -152,6 +161,9 @@ class ContainerDetectionApp:
         ttk.Label(controls_frame, textvariable=self.iso_code_var, 
                  font=("Arial", 10), foreground="blue").grid(
             row=1, column=1, sticky=tk.W, padx=(10, 0), pady=5)
+        # Mark label (for check/cross)
+        self.ts_mark_label = ttk.Label(controls_frame, textvariable=self.ts_mark_var, font=("Arial", 12, "bold"))
+        self.ts_mark_label.grid(row=1, column=2, sticky=tk.W, padx=(10, 0))
         
         # Sealed Count
         ttk.Label(controls_frame, text="Sealed Count:", font=("Arial", 10, "bold")).grid(
@@ -274,6 +286,9 @@ class ContainerDetectionApp:
         self.predictions_text.insert(tk.END, "Prediction output will appear here after detection...\n\n")
         self.predictions_text.insert(tk.END, "This text can be selected and copied using Ctrl+C.")
         self.predictions_text.config(state=tk.DISABLED)  # Make it read-only initially
+        self.predictions_text.tag_configure("header_tag", foreground="#1976d2", font=("Consolas", 10, "bold"))
+        self.predictions_text.tag_configure("check_tag", foreground="green", font=("Consolas", 10, "bold"))
+        self.predictions_text.tag_configure("cross_tag", foreground="red", font=("Consolas", 10, "bold"))
         
         # Button to copy predictions
         copy_btn = ttk.Button(predictions_frame, text="Copy Predictions", 
@@ -572,13 +587,55 @@ class ContainerDetectionApp:
         
         predictions_output += "This output can be selected and copied using Ctrl+C or the Copy button below."
         
-        self.predictions_text.insert(tk.END, predictions_output)
+        # Split by lines and insert with tag if header
+        for line in predictions_output.splitlines(keepends=True):
+            if line.strip().startswith("===") and line.strip().endswith("==="):
+                self.predictions_text.insert(tk.END, line, "header_tag")
+            elif "✔" in line:
+                # Insert up to and including the check mark in green, then the rest
+                idx = line.index("✔") + 1
+                self.predictions_text.insert(tk.END, line[:idx], "check_tag")
+                self.predictions_text.insert(tk.END, line[idx:])
+            elif "✘" in line:
+                idx = line.index("✘") + 1
+                self.predictions_text.insert(tk.END, line[:idx], "cross_tag")
+                self.predictions_text.insert(tk.END, line[idx:])
+            else:
+                self.predictions_text.insert(tk.END, line)
+        
+        
         self.predictions_text.config(state=tk.DISABLED)
 
         # Store original image for display and display processed image
         self.original_image = processed_image
         self.update_image_display()
         self.log_message("Processed image displayed")
+        
+        # Set check/cross marks and color
+        CN = results.get('CN', {}).get('value', '')
+        TS = results.get('TS', {}).get('value', '')
+
+        # Container Number mark
+        if CN and len(CN) == 11 and check_digit_verification(CN):
+            self.cn_mark_var.set("✔")
+            self.cn_mark_label.config(foreground="green")
+        elif CN:
+            self.cn_mark_var.set("✘")
+            self.cn_mark_label.config(foreground="red")
+        else:
+            self.cn_mark_var.set("")
+            self.cn_mark_label.config(foreground="black")
+
+        # ISO Code mark
+        if TS and len(TS) == 4:
+            self.ts_mark_var.set("✔")
+            self.ts_mark_label.config(foreground="green")
+        elif TS:
+            self.ts_mark_var.set("✘")
+            self.ts_mark_label.config(foreground="red")
+        else:
+            self.ts_mark_var.set("")
+            self.ts_mark_label.config(foreground="black")
         
         self.progress_bar.stop()
         self.progress_var.set("Detection completed successfully!")
