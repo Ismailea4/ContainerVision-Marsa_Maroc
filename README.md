@@ -6,6 +6,13 @@ AI solution for automated container ID and seal recognition at Marsa Maroc termi
 
 This project leverages OCR and computer vision to automatically extract container shipping information and detect seals from images. It is designed for deployment at Marsa Maroc terminals to improve efficiency and accuracy in container handling.
 
+## Demo
+
+Below is a demonstration of the desktop application in action:
+
+![Desktop App Demo](docs/gif_containerVis.gif)
+
+
 ## Folder Structure
 
 ```
