@@ -68,6 +68,7 @@ def code_verification_info(code):
     # Unicode symbols
     check = "✔"
     cross = "✘"
+    unsured = "❓"
     # Container Number check
     if CN:
         info += f"- Container Number: {CN}\n"
@@ -82,7 +83,13 @@ def code_verification_info(code):
     if TS:
         info += f"- ISO Code: {TS}\n"
         if len(TS) == 4:
-            info += f"{check} Valid ISO Code!\n"
+            if TS[:2].isdigit() and TS[2].isalpha() and TS[3].isdigit():
+                if TS[0] not in ['2','4']:
+                    info += f"{cross} Invalid ISO Code (must start with 2 or 4).\n"
+                else:
+                    info += f"{check} Valid ISO Code!\n"
+            else:
+                info += f"{unsured} Invalid ISO Code format (need verification).\n"
         else:
             info += f"{cross} Invalid ISO Code length.\n"
     return info
@@ -120,9 +127,13 @@ class ContainerDetectionApp:
         main_frame.columnconfigure(1, weight=2)
         main_frame.rowconfigure(1, weight=1)
         
-        # Title
-        title_label = ttk.Label(main_frame, text="Container Detection System", 
-                               font=("Arial", 16, "bold"))
+        # Title with dark blue color and a different font (Segoe UI, bold, size 24)
+        title_label = ttk.Label(
+            main_frame,
+            text="Container Detection System",
+            font=("Segoe UI", 24, "bold"),
+            foreground="#0d1a4d"  # Dark blue
+        )
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
         
         # Left panel for controls
@@ -166,48 +177,54 @@ class ContainerDetectionApp:
         self.ts_mark_label.grid(row=1, column=2, sticky=tk.W, padx=(10, 0))
         
         # Sealed Count
-        ttk.Label(controls_frame, text="Sealed Count:", font=("Arial", 10, "bold")).grid(
+        ttk.Label(controls_frame, text="Sealing :", font=("Arial", 10, "bold")).grid(
             row=2, column=0, sticky=tk.W, pady=5)
         self.sealed_count_var = tk.StringVar(value="--")
         ttk.Label(controls_frame, textvariable=self.sealed_count_var, 
-                 font=("Arial", 10), foreground="green").grid(
+                 font=("Arial", 10), foreground="blue").grid(
             row=2, column=1, sticky=tk.W, padx=(10, 0), pady=5)
         
-        # Unsealed Count
+        self.sealed_count_label = ttk.Label(controls_frame, textvariable=self.sealed_count_var, 
+                                        font=("Arial", 10), foreground="blue")
+        self.sealed_count_label.grid(row=2, column=1, sticky=tk.W, padx=(10, 0), pady=5)
+        
+        """
+        # Unsealed Count (commenting out for now)
         ttk.Label(controls_frame, text="Unsealed Count:", font=("Arial", 10, "bold")).grid(
             row=3, column=0, sticky=tk.W, pady=5)
         self.unsealed_count_var = tk.StringVar(value="--")
         ttk.Label(controls_frame, textvariable=self.unsealed_count_var, 
                  font=("Arial", 10), foreground="red").grid(
             row=3, column=1, sticky=tk.W, padx=(10, 0), pady=5)
+        """
         
         # Separator
         ttk.Separator(controls_frame, orient='horizontal').grid(
-            row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=20)
+            row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=20)
         
         # Upload button
         self.upload_btn = ttk.Button(controls_frame, text="Select Image", 
                                    command=self.upload_image, style="Accent.TButton")
-        self.upload_btn.grid(row=5, column=0, columnspan=2, pady=10)
+        self.upload_btn.grid(row=4, column=0, columnspan=2, pady=10)
         
         # Process button
         self.process_btn = ttk.Button(controls_frame, text="Start Detection", 
                                     command=self.start_detection, state="disabled")
-        self.process_btn.grid(row=6, column=0, columnspan=2, pady=5)
+        self.process_btn.grid(row=5, column=0, columnspan=2, pady=5)
         
         # Save button
         self.save_btn = ttk.Button(controls_frame, text="Save Output Image", 
                                  command=self.save_output_image, state="disabled")
-        self.save_btn.grid(row=7, column=0, columnspan=2, pady=5)
+        self.save_btn.grid(row=6, column=0, columnspan=2, pady=5)
         
         # Clear button
         self.clear_btn = ttk.Button(controls_frame, text="Clear Results", 
                                   command=self.clear_results)
-        self.clear_btn.grid(row=8, column=0, columnspan=2, pady=5)
+        self.clear_btn.grid(row=7, column=0, columnspan=2, pady=5)
         
         # Terminal output frame
         terminal_frame = ttk.LabelFrame(controls_frame, text="Processing Log", padding="10")
-        terminal_frame.grid(row=9, column=0, columnspan=2, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
+        terminal_frame.grid(row=8, column=0, columnspan=2, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
         terminal_frame.columnconfigure(0, weight=0)
         terminal_frame.rowconfigure(0, weight=0)
         
@@ -222,7 +239,7 @@ class ContainerDetectionApp:
             fg="lightgreen",
             insertbackground="white"
         )
-        self.terminal_text.grid(row=9, column=0, columnspan=2, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.terminal_text.grid(row=8, column=0, columnspan=2, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.terminal_text.insert(tk.END, "Processing log will appear here...\n")
         self.terminal_text.config(state=tk.DISABLED)
         
@@ -513,13 +530,14 @@ class ContainerDetectionApp:
             from my_detection_module import container_detection
             
             self.log_message("Processing image...")
+            self.log_message("Loading AI models...")
+
             
             # For now, using simulated results - replace this with your actual function
             output = container_detection(self.current_image_path)
             
             # Simulate the actual detection process
             import time
-            self.log_message("Loading AI models...")
             self.log_message("Analyzing container features...")
             self.log_message("Detecting text regions...")
             self.log_message("Running OCR on detected regions...")
@@ -544,8 +562,8 @@ class ContainerDetectionApp:
         
         self.container_number_var.set(results.get('CN', {}).get('value','--'))
         self.iso_code_var.set(results.get('TS', {}).get('value','--'))
-        self.sealed_count_var.set(str(results.get('sealed', {}).get('value', 0)))
-        self.unsealed_count_var.set(str(results.get('unsealed', {}).get('value', 0)))
+        self.sealed_count_var.set(str(results.get('sealed', {}).get('value', '--')))
+        #self.unsealed_count_var.set(str(results.get('unsealed', {}).get('value', 0)))
 
         # Update predictions text widget
         self.predictions_text.config(state=tk.NORMAL)
@@ -569,12 +587,17 @@ class ContainerDetectionApp:
         predictions_output += f"ISO Code: {results.get('TS', {}).get('value', 'Not detected')}\n"
         predictions_output += f"  Confidence: {results.get('TS', {}).get('confidence', 0):.2%}\n\n"
         
-        predictions_output += f"Sealed Containers: {results.get('sealed', {}).get('value', 0)}\n"
-        predictions_output += f"  Confidence: {results.get('sealed', {}).get('confidence', 0):.2%}\n\n"
-        
-        predictions_output += f"Unsealed Containers: {results.get('unsealed', {}).get('value', 0)}\n"
-        predictions_output += f"  Confidence: {results.get('unsealed', {}).get('confidence', 0):.2%}\n\n"
-        
+        sealed_value = results.get('sealed', {}).get('value', 0)
+        unsealed_value = results.get('unsealed', {}).get('value', 0)
+        if sealed_value >= 1:
+            predictions_output += "Sealing Status: Sealed\n"
+            predictions_output += f"  Confidence: {results.get('sealed', {}).get('confidence', 0):.2%}\n\n"
+        elif unsealed_value >= 1:
+            predictions_output += "Sealing Status: Not Sealed\n"
+            predictions_output += f"  Confidence: {results.get('unsealed', {}).get('confidence', 0):.2%}\n\n"
+        else:
+            predictions_output += "Sealing Status: Not Detected\n\n"
+                
         predictions_output += "=== CHECK DETAILS ===\n"
         check_info = code_verification_info(results)
         predictions_output += check_info + "\n"
@@ -611,10 +634,24 @@ class ContainerDetectionApp:
         self.update_image_display()
         self.log_message("Processed image displayed")
         
+
+        sealed_value = results.get('sealed', {}).get('value', 0)
+        unsealed_value = results.get('unsealed', {}).get('value', 0)
+                
+        if sealed_value >= 1:
+            self.sealed_count_var.set("Sealed")
+            self.sealed_count_label.config(foreground="green")
+        elif unsealed_value >= 1:
+            self.sealed_count_var.set("Not Sealed")
+            self.sealed_count_label.config(foreground="red")
+        else:
+            self.sealed_count_var.set("--")
+            self.sealed_count_label.config(foreground="black")
+        
         # Set check/cross marks and color
         CN = results.get('CN', {}).get('value', '')
         TS = results.get('TS', {}).get('value', '')
-
+        
         # Container Number mark
         if CN and len(CN) == 11 and check_digit_verification(CN):
             self.cn_mark_var.set("✔")
@@ -625,11 +662,16 @@ class ContainerDetectionApp:
         else:
             self.cn_mark_var.set("")
             self.cn_mark_label.config(foreground="black")
-
+            
         # ISO Code mark
         if TS and len(TS) == 4:
-            self.ts_mark_var.set("✔")
-            self.ts_mark_label.config(foreground="green")
+            # Add your ISO code format check here if needed
+            if TS[:2].isdigit() and TS[2].isalpha() and TS[3].isdigit() and TS[0] in ['2', '4']:
+                self.ts_mark_var.set("✔")
+                self.ts_mark_label.config(foreground="green")
+            else:
+                self.ts_mark_var.set("❓")
+                self.ts_mark_label.config(foreground="orange")
         elif TS:
             self.ts_mark_var.set("✘")
             self.ts_mark_label.config(foreground="red")
@@ -685,7 +727,9 @@ class ContainerDetectionApp:
         self.container_number_var.set("--")
         self.iso_code_var.set("--")
         self.sealed_count_var.set("--")
-        self.unsealed_count_var.set("--")
+        self.cn_mark_var.set("")
+        self.ts_mark_var.set("")
+        # self.unsealed_count_var.set("--")
         
         # Clear predictions
         self.predictions_text.config(state=tk.NORMAL)

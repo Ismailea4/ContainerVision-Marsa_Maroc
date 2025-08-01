@@ -16,7 +16,7 @@ Designed for deployment at Marsa Maroc terminals to improve efficiency and accur
 ## 🎬 Demo
 
 <p align="center">
-  <img src="docs/gif_containerVis.gif" alt="Desktop App Demo"/>
+  <img src="docs/gif2_containerVis.gif" alt="Desktop App Demo"/>
 </p>
 
 ---
