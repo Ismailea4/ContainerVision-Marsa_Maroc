@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import io
 import warnings
-from src.pipeline import container_detection
+from src.pipeline import container_detection, check_digit_verification
 
 warnings.filterwarnings('ignore')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -42,7 +42,7 @@ with tabs[0]:
             uploaded = st.file_uploader(f"Upload image to {cam['name']}", type=["jpg", "jpeg", "png"], key=cam["id"])
             if uploaded:
                 img = Image.open(uploaded)
-                st.image(img, use_container_width=True, caption="Uploaded image")
+                st.image(img, caption="Uploaded image")
                 if st.button(f"Run Detection ({cam['name']})", key=f"run_{cam['id']}"):
                     temp_path = f"temp_{cam['id']}.jpg"
                     img.save(temp_path)
@@ -55,6 +55,16 @@ with tabs[0]:
                     processed_pil = None
                     if isinstance(processed_img, np.ndarray):
                         processed_pil = Image.fromarray(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB))
+                    # CN validity check
+                    cn_value = detections.get("CN", {}).get("value", "")
+                    cn_valid = False
+                    if cn_value:
+                        cn_valid = check_digit_verification({"CN": cn_value})
+                    
+                    # Seal status check - image is sealed if sealed >= 1
+                    sealed_count = detections.get("sealed", {}).get("value", 0)
+                    is_sealed = sealed_count >= 1
+                    
                     # Store result (store both original and processed image)
                     history_entry = {
                         "datetime": timestamp,
@@ -63,8 +73,11 @@ with tabs[0]:
                         "original_image": img,
                         "processed_image": processed_pil,
                         "detections": detections,
-                        "container": detections.get("CN", {}).get("value", ""),
-                        "confidence": round(float(detections.get("CN", {}).get("confidence", 0)), 2) if "CN" in detections else 0
+                        "container": cn_value,
+                        "confidence": round(float(detections.get("CN", {}).get("confidence", 0)), 2) if "CN" in detections else 0,
+                        "cn_valid": cn_valid,
+                        "is_sealed": is_sealed,
+                        "sealed_count": sealed_count
                     }
                     st.session_state["history"].append(history_entry)
                     st.session_state["detections_by_zone"][cam["id"]].insert(0, history_entry)
@@ -72,15 +85,24 @@ with tabs[0]:
                     # Only results shown below
                     with st.expander("Detection Results", expanded=True):
                         if processed_pil:
-                            st.image(processed_pil, use_container_width=True, caption="Processed image (with rectangles)")
+                            st.image(processed_pil, caption="Processed image (with rectangles)")
                         if detections:
                             for k, v in detections.items():
                                 st.write(f"{k}: {v['value']} (Confidence: {v['confidence']:.2f})")
+                        if cn_value:
+                            validity_str = "✅ Valid CN" if cn_valid else "❌ Invalid CN"
+                            st.markdown(f"*CN Validity:* {validity_str}")
                         else:
                             st.info("No valid codes detected (after validation).")
+                        
+                        # Display seal status
+                        seal_status = "🔒 Sealed" if is_sealed else "🔓 Unsealed"
+                        st.markdown(f"*Seal Status:* {seal_status}")
+                        if sealed_count > 0:
+                            st.markdown(f"*Seals Detected:* {sealed_count}")
                         # Fullscreen show original image on click
                         if st.button("Show Original (Fullscreen)", key=f"fullscreen_{cam['id']}"):
-                            st.image(img, use_container_width=True, caption="Original Image (Fullscreen)")
+                            st.image(img, caption="Original Image (Fullscreen)")
             # Show last 3 detections for this zone
             last = st.session_state["detections_by_zone"][cam["id"]][:3]
             if last:
@@ -88,7 +110,9 @@ with tabs[0]:
                 for det in last:
                     conf = det["confidence"]
                     color = "🟢" if conf >= 90 else "🟡" if conf >= 75 else "🔴"
-                    st.write(f"{det['datetime']} | {det['container']} | {color} {conf}%")
+                    valid_txt = "✅" if det.get("cn_valid") else ("❌" if det.get("container") else "")
+                    seal_txt = "🔒" if det.get("is_sealed") else "🔓"
+                    st.write(f"{det['datetime']} | {det['container']} | {color} {conf}% | CN Valid: {valid_txt} | Seal: {seal_txt}")
 
 # 2. HISTORY TAB
 with tabs[1]:
@@ -100,7 +124,9 @@ with tabs[1]:
             "Date/Time": h["datetime"],
             "Zone": h["zone"],
             "Container": h["container"],
-            "Confidence": h["confidence"]
+            "Confidence": h["confidence"],
+            "CN Valid": "✅" if h.get("cn_valid") else ("❌" if h.get("container") else ""),
+            "Seal Status": "🔒 Sealed" if h.get("is_sealed") else "🔓 Unsealed"
         } for h in hist])
         st.dataframe(df, use_container_width=True)
         # Download CSV
@@ -111,14 +137,23 @@ with tabs[1]:
         for i, h in enumerate(reversed(hist)):
             with st.expander(f"{h['datetime']} | {h['zone']} | {h['container'] or 'No CN'} ({h['confidence']}%)", expanded=False):
                 if h["processed_image"]:
-                    st.image(h["processed_image"], use_container_width=True, caption="Processed Image (with rectangles)")
+                    st.image(h["processed_image"], caption="Processed Image (with rectangles)")
                 if h["detections"]:
                     st.write("*Detection Results:*")
                     for k, v in h["detections"].items():
                         st.write(f"- {k}: {v['value']} (Confidence: {v['confidence']:.2f})")
+                if h["container"]:
+                    validity_str = "✅ Valid CN" if h["cn_valid"] else "❌ Invalid CN"
+                    st.markdown(f"*CN Validity:* {validity_str}")
+                
+                # Display seal status in history
+                seal_status = "🔒 Sealed" if h.get("is_sealed") else "🔓 Unsealed"
+                st.markdown(f"*Seal Status:* {seal_status}")
+                if h.get("sealed_count", 0) > 0:
+                    st.markdown(f"*Seals Detected:* {h.get('sealed_count')}")
                 # Button to view original image fullscreen
                 if st.button(f"Show Original Image (Fullscreen) {i}", key=f"fullscreen_hist_{i}"):
-                    st.image(h["original_image"], use_container_width=True, caption="Original Image (Fullscreen)")
+                    st.image(h["original_image"], caption="Original Image (Fullscreen)")
     else:
         st.info("No predictions have been made yet.")
 
@@ -138,6 +173,14 @@ with tabs[2]:
             all_conf = [h["confidence"] for h in hist]
             avg_conf = np.mean(all_conf) if all_conf else 0
             st.metric("Average Confidence", f"{avg_conf:.2f}")
+        
+        col4, col5 = st.columns(2)
+        with col4:
+            sealed_count = sum(1 for h in hist if h.get("is_sealed"))
+            st.metric("Sealed Containers", sealed_count)
+        with col5:
+            unsealed_count = sum(1 for h in hist if not h.get("is_sealed"))
+            st.metric("Unsealed Containers", unsealed_count)
         # Per-zone stats
         st.subheader("Zone Statistics")
         zone_stats = []
@@ -185,5 +228,18 @@ with tabs[2]:
         st.subheader("Predictions Per Zone")
         zone_counts = {z["name"]: len(st.session_state["detections_by_zone"][z["id"]]) for z in CAMERAS}
         st.bar_chart(pd.DataFrame.from_dict(zone_counts, orient="index", columns=["Count"]))
+        # Valid/Invalid CNs count
+        st.subheader("CN Validity Distribution")
+        valid_count = sum(1 for h in hist if h.get("cn_valid"))
+        invalid_count = sum(1 for h in hist if h.get("container") and not h.get("cn_valid"))
+        validity_df = pd.DataFrame({"Valid CN": [valid_count], "Invalid CN": [invalid_count]}).T.rename(columns={0:"Count"})
+        st.bar_chart(validity_df)
+        
+        # Seal Status Distribution
+        st.subheader("Seal Status Distribution")
+        sealed_count = sum(1 for h in hist if h.get("is_sealed"))
+        unsealed_count = sum(1 for h in hist if not h.get("is_sealed"))
+        seal_df = pd.DataFrame({"Sealed": [sealed_count], "Unsealed": [unsealed_count]}).T.rename(columns={0:"Count"})
+        st.bar_chart(seal_df)
     else:
-        st.info("No statistics available yet.")
+        st.info("No statistics available yet.")
